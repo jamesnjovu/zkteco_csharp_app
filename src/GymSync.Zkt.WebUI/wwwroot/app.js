@@ -214,6 +214,78 @@ const actions = {
     show("out-upload-face-tpl", ok, ok ? body.message : (body.error || body));
   },
 
+  // Attendance
+  async "att-all"(btn) {
+    show("out-att-all", true, "Fetching all logs...");
+    const { ok, body } = await callJson("/api/attendance/all", deviceOverrides());
+    if (!ok) return show("out-att-all", false, body.error || body);
+    renderAttLogs("out-att-all", body);
+  },
+
+  async "att-new"(btn) {
+    show("out-att-new", true, "Fetching new logs...");
+    const { ok, body } = await callJson("/api/attendance/new", deviceOverrides());
+    if (!ok) return show("out-att-new", false, body.error || body);
+    renderAttLogs("out-att-new", body);
+  },
+
+  async "att-range"(btn) {
+    const startDate = fmtDt($("att-range-start").value);
+    const endDate = fmtDt($("att-range-end").value);
+    if (!startDate || !endDate) return show("out-att-range", false, "Select start and end dates");
+    show("out-att-range", true, "Fetching...");
+    const { ok, body } = await callJson("/api/attendance/range", { ...deviceOverrides(), startDate, endDate });
+    if (!ok) return show("out-att-range", false, body.error || body);
+    renderAttLogs("out-att-range", body);
+  },
+
+  async "att-admin"(btn) {
+    show("out-att-admin", true, "Fetching admin logs...");
+    const { ok, body } = await callJson("/api/attendance/admin", deviceOverrides());
+    if (!ok) return show("out-att-admin", false, body.error || body);
+    if (!body.logs.length) return show("out-att-admin", true, "No admin logs");
+    const rows = body.logs.map(l =>
+      `<tr><td>${l.admin}</td><td>${l.target}</td><td>${l.manipulation}</td><td>${l.timestamp}</td></tr>`
+    ).join("");
+    showHtml("out-att-admin", true, `<table>
+      <thead><tr><th>Admin</th><th>Target</th><th>Action</th><th>Time</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table><p style="margin:8px 0 0;color:var(--muted)">Total: ${body.count} entries</p>`);
+  },
+
+  async "att-delete-range"(btn) {
+    const startDate = fmtDt($("att-del-start").value);
+    const endDate = fmtDt($("att-del-end").value);
+    if (!startDate || !endDate) return show("out-att-delete-range", false, "Select start and end dates");
+    if (!confirm(`Delete attendance logs from ${startDate} to ${endDate}?`)) return;
+    show("out-att-delete-range", true, "Deleting...");
+    const { ok, body } = await callJson("/api/attendance/delete-range", { ...deviceOverrides(), startDate, endDate });
+    show("out-att-delete-range", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "att-delete-before"(btn) {
+    const before = fmtDt($("att-del-before").value);
+    if (!before) return show("out-att-delete-before", false, "Select a date");
+    if (!confirm(`Delete all attendance logs before ${before}?`)) return;
+    show("out-att-delete-before", true, "Deleting...");
+    const { ok, body } = await callJson("/api/attendance/delete-before", { ...deviceOverrides(), before });
+    show("out-att-delete-before", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "att-clear"(btn) {
+    if (!confirm("Clear ALL attendance logs? This cannot be undone.")) return;
+    show("out-att-clear", true, "Clearing...");
+    const { ok, body } = await callJson("/api/attendance/clear", deviceOverrides());
+    show("out-att-clear", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "att-clear-admin"(btn) {
+    if (!confirm("Clear ALL admin logs? This cannot be undone.")) return;
+    show("out-att-clear", true, "Clearing...");
+    const { ok, body } = await callJson("/api/attendance/clear-admin", deviceOverrides());
+    show("out-att-clear", ok, ok ? body.message : (body.error || body));
+  },
+
   // Device
   async "device-info"(btn) {
     show("out-device-info", true, "Fetching...");
@@ -279,5 +351,25 @@ document.addEventListener("click", async (e) => {
   try { await actions[action](btn); }
   finally { btn.disabled = false; }
 });
+
+// Format datetime-local value to "yyyy-MM-dd HH:mm:ss"
+function fmtDt(val) {
+  if (!val) return null;
+  return val.replace("T", " ") + (val.length === 16 ? ":00" : "");
+}
+
+const verifyNames = { 0: "Password", 1: "Fingerprint", 2: "Card", 3: "Face", 4: "Multi" };
+const inOutNames = { 0: "Check-In", 1: "Check-Out", 2: "Break-Out", 3: "Break-In", 4: "OT-In", 5: "OT-Out" };
+
+function renderAttLogs(elId, body) {
+  if (!body.logs.length) return show(elId, true, "No logs found");
+  const rows = body.logs.map(l =>
+    `<tr><td>${l.userId}</td><td>${l.timestamp}</td><td>${verifyNames[l.verifyMethod] ?? l.verifyMethod}</td><td>${inOutNames[l.inOutState] ?? l.inOutState}</td><td>${l.workCode || ""}</td></tr>`
+  ).join("");
+  showHtml(elId, true, `<table>
+    <thead><tr><th>User ID</th><th>Time</th><th>Verify</th><th>State</th><th>Work Code</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table><p style="margin:8px 0 0;color:var(--muted)">Total: ${body.count} records</p>`);
+}
 
 loadConfig();

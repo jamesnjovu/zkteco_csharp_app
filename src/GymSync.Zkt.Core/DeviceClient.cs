@@ -248,6 +248,134 @@ public sealed class DeviceClient : IDisposable
         });
     }
 
+    // ---------- Attendance Logs ----------
+
+    public List<AttLog> ReadAllAttLogs()
+    {
+        return _sta.Invoke(() =>
+        {
+            Require();
+            var logs = new List<AttLog>();
+            if (!_czkem!.ReadGeneralLogData(MachineNumber)) return logs;
+
+            string uid = "";
+            int verify = 0, inOut = 0, y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0, wc = 0;
+
+            while (_czkem.SSR_GetGeneralLogData(
+                       MachineNumber, out uid, out verify, out inOut,
+                       out y, out mo, out d, out h, out mi, out s, ref wc))
+            {
+                logs.Add(new AttLog(uid ?? "", SafeDate(y, mo, d, h, mi, s), verify, inOut, wc));
+            }
+            return logs;
+        });
+    }
+
+    public List<AttLog> ReadNewAttLogs()
+    {
+        return _sta.Invoke(() =>
+        {
+            Require();
+            var logs = new List<AttLog>();
+            if (!_czkem!.ReadNewGLogData(MachineNumber)) return logs;
+
+            string uid = "";
+            int verify = 0, inOut = 0, y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0, wc = 0;
+
+            while (_czkem.SSR_GetGeneralLogData(
+                       MachineNumber, out uid, out verify, out inOut,
+                       out y, out mo, out d, out h, out mi, out s, ref wc))
+            {
+                logs.Add(new AttLog(uid ?? "", SafeDate(y, mo, d, h, mi, s), verify, inOut, wc));
+            }
+            return logs;
+        });
+    }
+
+    public List<AttLog> ReadAttLogsByDateRange(string startDate, string endDate)
+    {
+        return _sta.Invoke(() =>
+        {
+            Require();
+            var logs = new List<AttLog>();
+            if (!_czkem!.ReadTimeGLogData(MachineNumber, startDate, endDate)) return logs;
+
+            string uid = "";
+            int verify = 0, inOut = 0, y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0, wc = 0;
+
+            while (_czkem.SSR_GetGeneralLogData(
+                       MachineNumber, out uid, out verify, out inOut,
+                       out y, out mo, out d, out h, out mi, out s, ref wc))
+            {
+                logs.Add(new AttLog(uid ?? "", SafeDate(y, mo, d, h, mi, s), verify, inOut, wc));
+            }
+            return logs;
+        });
+    }
+
+    public List<AdminLog> ReadAdminLogs()
+    {
+        return _sta.Invoke(() =>
+        {
+            Require();
+            var logs = new List<AdminLog>();
+            if (!_czkem!.ReadSuperLogData(MachineNumber)) return logs;
+
+            while (_czkem.SSR_GetSuperLogData(
+                       MachineNumber, out int _, out string admin, out string target,
+                       out int manipulation, out string timeStr, out int _, out int _, out int _))
+            {
+                var ts = DateTime.TryParse(timeStr, out var parsed) ? parsed.ToString("yyyy-MM-dd HH:mm:ss") : timeStr;
+                logs.Add(new AdminLog(admin ?? "", target ?? "", manipulation, ts));
+            }
+            return logs;
+        });
+    }
+
+    public void ClearAttLogs()
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            _czkem!.ClearGLog(MachineNumber);
+        });
+    }
+
+    public void ClearAdminLogs()
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            _czkem!.ClearSLog(MachineNumber);
+        });
+    }
+
+    public void DeleteAttLogsByDateRange(string startDate, string endDate)
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.DeleteAttlogBetweenTheDate(MachineNumber, startDate, endDate);
+            if (!ok) throw new IOException($"DeleteAttlogBetweenTheDate failed: {LastError()}");
+        });
+    }
+
+    public void DeleteAttLogsBefore(string dateTime)
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.DeleteAttlogByTime(MachineNumber, dateTime);
+            if (!ok) throw new IOException($"DeleteAttlogByTime failed: {LastError()}");
+        });
+    }
+
+    private static string SafeDate(int y, int mo, int d, int h, int mi, int s)
+    {
+        try { return new DateTime(y, mo, d, h, mi, s).ToString("yyyy-MM-dd HH:mm:ss"); }
+        catch { return $"{y:D4}-{mo:D2}-{d:D2} {h:D2}:{mi:D2}:{s:D2}"; }
+    }
+
     // ---------- Device ----------
 
     public void PlayVoice(int index)

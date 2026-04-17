@@ -311,6 +311,121 @@ app.MapPost("/api/template/face/upload", async (HttpRequest req) =>
     });
 });
 
+// ------------- /api/attendance/all ----------
+app.MapPost("/api/attendance/all", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        var logs = client.ReadAllAttLogs();
+        return Results.Json(new { ok = true, count = logs.Count, logs }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/new ----------
+app.MapPost("/api/attendance/new", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        var logs = client.ReadNewAttLogs();
+        return Results.Json(new { ok = true, count = logs.Count, logs }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/range --------
+app.MapPost("/api/attendance/range", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var startDate = GetStr(body, "startDate");
+    var endDate = GetStr(body, "endDate");
+    if (string.IsNullOrWhiteSpace(startDate) || string.IsNullOrWhiteSpace(endDate))
+        return Err("Supply startDate and endDate (yyyy-MM-dd HH:mm:ss)", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        var logs = client.ReadAttLogsByDateRange(startDate, endDate);
+        return Results.Json(new { ok = true, count = logs.Count, startDate, endDate, logs }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/admin --------
+app.MapPost("/api/attendance/admin", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        var logs = client.ReadAdminLogs();
+        return Results.Json(new { ok = true, count = logs.Count, logs }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/clear --------
+app.MapPost("/api/attendance/clear", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.ClearAttLogs();
+        return Results.Json(new { ok = true, message = "Attendance logs cleared" }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/clear-admin --
+app.MapPost("/api/attendance/clear-admin", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.ClearAdminLogs();
+        return Results.Json(new { ok = true, message = "Admin logs cleared" }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/delete-range -
+app.MapPost("/api/attendance/delete-range", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var startDate = GetStr(body, "startDate");
+    var endDate = GetStr(body, "endDate");
+    if (string.IsNullOrWhiteSpace(startDate) || string.IsNullOrWhiteSpace(endDate))
+        return Err("Supply startDate and endDate (yyyy-MM-dd HH:mm:ss)", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.DeleteAttLogsByDateRange(startDate, endDate);
+        return Results.Json(new { ok = true, message = $"Attendance logs deleted from {startDate} to {endDate}" }, jsonOpts);
+    });
+});
+
+// ------------- /api/attendance/delete-before
+app.MapPost("/api/attendance/delete-before", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var before = GetStr(body, "before");
+    if (string.IsNullOrWhiteSpace(before))
+        return Err("Supply before (yyyy-MM-dd HH:mm:ss)", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.DeleteAttLogsBefore(before);
+        return Results.Json(new { ok = true, message = $"Attendance logs before {before} deleted" }, jsonOpts);
+    });
+});
+
 // ------------- /api/device/voice -----------
 app.MapPost("/api/device/voice", async (HttpRequest req) =>
 {

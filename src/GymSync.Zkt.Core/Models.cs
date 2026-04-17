@@ -28,6 +28,21 @@ public sealed record DeviceInfo(
     int AttLogCount, int AttLogCapacity
 );
 
+public sealed record AttLog(
+    string UserId,
+    string Timestamp,
+    int VerifyMethod,
+    int InOutState,
+    int WorkCode
+);
+
+public sealed record AdminLog(
+    string Admin,
+    string Target,
+    int Manipulation,
+    string Timestamp
+);
+
 public sealed class Manifest
 {
     public string DeviceIp { get; set; } = "";

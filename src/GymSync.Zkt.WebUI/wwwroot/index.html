@@ -30,6 +30,7 @@
     <button class="tab active" data-tab="users">Users</button>
     <button class="tab" data-tab="enrollment">Enrollment</button>
     <button class="tab" data-tab="templates">Templates</button>
+    <button class="tab" data-tab="attendance">Attendance</button>
     <button class="tab" data-tab="device">Device</button>
   </nav>
 
@@ -194,6 +195,66 @@
           <button data-action="upload-face-tpl">Upload</button>
         </div>
         <div class="output" id="out-upload-face-tpl"></div>
+      </section>
+    </div>
+
+    <!-- ==================== ATTENDANCE TAB ==================== -->
+    <div class="tab-pane" id="tab-attendance">
+      <section class="card">
+        <h2>All attendance logs</h2>
+        <button data-action="att-all">Fetch all logs</button>
+        <div class="output" id="out-att-all"></div>
+      </section>
+
+      <section class="card">
+        <h2>New attendance logs</h2>
+        <p class="muted">Only logs since the last read.</p>
+        <button data-action="att-new">Fetch new logs</button>
+        <div class="output" id="out-att-new"></div>
+      </section>
+
+      <section class="card">
+        <h2>Logs by date range</h2>
+        <div class="inline">
+          <label>Start <input id="att-range-start" type="datetime-local" /></label>
+          <label>End <input id="att-range-end" type="datetime-local" /></label>
+          <button data-action="att-range">Fetch</button>
+        </div>
+        <div class="output" id="out-att-range"></div>
+      </section>
+
+      <section class="card">
+        <h2>Admin / operation logs</h2>
+        <button data-action="att-admin">Fetch admin logs</button>
+        <div class="output" id="out-att-admin"></div>
+      </section>
+
+      <section class="card">
+        <h2>Delete logs by date range</h2>
+        <div class="inline">
+          <label>Start <input id="att-del-start" type="datetime-local" /></label>
+          <label>End <input id="att-del-end" type="datetime-local" /></label>
+          <button data-action="att-delete-range" class="btn-danger">Delete range</button>
+        </div>
+        <div class="output" id="out-att-delete-range"></div>
+      </section>
+
+      <section class="card">
+        <h2>Delete logs before date</h2>
+        <div class="inline">
+          <label>Before <input id="att-del-before" type="datetime-local" /></label>
+          <button data-action="att-delete-before" class="btn-danger">Delete</button>
+        </div>
+        <div class="output" id="out-att-delete-before"></div>
+      </section>
+
+      <section class="card">
+        <h2>Clear all logs</h2>
+        <div class="inline">
+          <button data-action="att-clear" class="btn-danger">Clear attendance logs</button>
+          <button data-action="att-clear-admin" class="btn-danger">Clear admin logs</button>
+        </div>
+        <div class="output" id="out-att-clear"></div>
       </section>
     </div>
 
