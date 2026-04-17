@@ -85,6 +85,22 @@
       </section>
 
       <section class="card">
+        <h2>User validity dates</h2>
+        <div class="inline">
+          <label>Enroll # <input id="validity-enroll" placeholder="e.g. 1001" /></label>
+          <button data-action="get-validity">Get validity</button>
+        </div>
+        <div class="inline">
+          <label>Start date <input id="validity-start" type="date" /></label>
+          <label>End date <input id="validity-end" type="date" /></label>
+          <label class="checkbox"><input id="validity-expires" type="checkbox" checked /> Has expiry</label>
+          <button data-action="set-validity">Set validity</button>
+          <button data-action="clear-validity">Clear expiry</button>
+        </div>
+        <div class="output" id="out-validity"></div>
+      </section>
+
+      <section class="card">
         <h2>Enable / Disable user</h2>
         <div class="inline">
           <label>Enroll # <input id="toggle-enroll" placeholder="e.g. 1001" /></label>
@@ -164,6 +180,31 @@
           <button data-action="get-face-tpl">Get template</button>
         </div>
         <div class="output" id="out-get-face-tpl"></div>
+      </section>
+
+      <section class="card">
+        <h2>Delete fingerprint template</h2>
+        <div class="inline">
+          <label>Enroll # <input id="tpl-fp-del-enroll" placeholder="e.g. 1001" /></label>
+          <label>Finger index <select id="tpl-fp-del-finger">
+            <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+            <option value="9">9</option>
+          </select></label>
+          <button data-action="delete-finger-tpl" class="btn-danger">Delete</button>
+        </div>
+        <div class="output" id="out-delete-finger-tpl"></div>
+      </section>
+
+      <section class="card">
+        <h2>Delete face template</h2>
+        <div class="inline">
+          <label>Enroll # <input id="tpl-face-del-enroll" placeholder="e.g. 1001" /></label>
+          <label>Face index <input id="tpl-face-del-index" type="number" value="50" /></label>
+          <button data-action="delete-face-tpl" class="btn-danger">Delete</button>
+        </div>
+        <div class="output" id="out-delete-face-tpl"></div>
       </section>
 
       <section class="card">
@@ -282,6 +323,12 @@
           <button data-action="voice-test">Play</button>
         </div>
         <div class="output" id="out-voice-test"></div>
+      </section>
+
+      <section class="card">
+        <h2>Restart device</h2>
+        <button data-action="device-restart" class="btn-danger">Restart</button>
+        <div class="output" id="out-device-restart"></div>
       </section>
 
       <section class="card">

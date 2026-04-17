@@ -126,6 +126,45 @@ const actions = {
     show("out-update-user", ok, ok ? body.message : (body.error || body));
   },
 
+  async "get-validity"(btn) {
+    const enroll = $("validity-enroll").value.trim();
+    if (!enroll) return show("out-validity", false, "Enter enroll number");
+    show("out-validity", true, "Fetching...");
+    const { ok, body } = await callJson("/api/user/validity", { ...deviceOverrides(), enrollNumber: enroll });
+    if (!ok) return show("out-validity", false, body.error || body);
+    const v = body.validity;
+    if (v.expires) {
+      $("validity-expires").checked = true;
+      $("validity-start").value = v.startDate || "";
+      $("validity-end").value = v.endDate || "";
+    } else {
+      $("validity-expires").checked = false;
+    }
+    show("out-validity", true, v.expires
+      ? `User ${v.enrollNumber}: valid from ${v.startDate || "(unset)"} to ${v.endDate || "(unset)"}`
+      : `User ${v.enrollNumber}: no expiry set`);
+  },
+
+  async "set-validity"(btn) {
+    const enroll = $("validity-enroll").value.trim();
+    const startDate = $("validity-start").value;
+    const endDate = $("validity-end").value;
+    const expires = $("validity-expires").checked;
+    if (!enroll) return show("out-validity", false, "Enter enroll number");
+    if (expires && (!startDate || !endDate)) return show("out-validity", false, "Select start and end dates");
+    show("out-validity", true, "Setting...");
+    const { ok, body } = await callJson("/api/user/validity/set", { ...deviceOverrides(), enrollNumber: enroll, expires, startDate, endDate });
+    show("out-validity", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "clear-validity"(btn) {
+    const enroll = $("validity-enroll").value.trim();
+    if (!enroll) return show("out-validity", false, "Enter enroll number");
+    show("out-validity", true, "Clearing...");
+    const { ok, body } = await callJson("/api/user/validity/set", { ...deviceOverrides(), enrollNumber: enroll, expires: false, startDate: "", endDate: "" });
+    show("out-validity", ok, ok ? "Expiry cleared" : (body.error || body));
+  },
+
   async "enable-user"(btn) {
     const enroll = $("toggle-enroll").value.trim();
     if (!enroll) return show("out-toggle-user", false, "Enter enroll number");
@@ -190,6 +229,26 @@ const actions = {
     if (!ok) return show("out-get-face-tpl", false, body.error || body);
     if (!body.found) return show("out-get-face-tpl", true, `No face template in slot ${faceIndex} for user ${enroll}`);
     show("out-get-face-tpl", true, body);
+  },
+
+  async "delete-finger-tpl"(btn) {
+    const enroll = $("tpl-fp-del-enroll").value.trim();
+    const finger = parseInt($("tpl-fp-del-finger").value, 10);
+    if (!enroll) return show("out-delete-finger-tpl", false, "Enter enroll number");
+    if (!confirm(`Delete fingerprint template for ${enroll} finger=${finger}?`)) return;
+    show("out-delete-finger-tpl", true, "Deleting...");
+    const { ok, body } = await callJson("/api/template/finger/delete", { ...deviceOverrides(), enrollNumber: enroll, fingerIndex: finger });
+    show("out-delete-finger-tpl", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "delete-face-tpl"(btn) {
+    const enroll = $("tpl-face-del-enroll").value.trim();
+    const faceIndex = parseInt($("tpl-face-del-index").value, 10) || 50;
+    if (!enroll) return show("out-delete-face-tpl", false, "Enter enroll number");
+    if (!confirm(`Delete face template for ${enroll} face=${faceIndex}?`)) return;
+    show("out-delete-face-tpl", true, "Deleting...");
+    const { ok, body } = await callJson("/api/template/face/delete", { ...deviceOverrides(), enrollNumber: enroll, faceIndex });
+    show("out-delete-face-tpl", ok, ok ? body.message : (body.error || body));
   },
 
   async "upload-finger-tpl"(btn) {
@@ -324,6 +383,13 @@ const actions = {
     show("out-voice-test", true, "Playing...");
     const { ok, body } = await callJson("/api/device/voice", { ...deviceOverrides(), index });
     show("out-voice-test", ok, ok ? body.message : (body.error || body));
+  },
+
+  async "device-restart"(btn) {
+    if (!confirm("Restart the device?")) return;
+    show("out-device-restart", true, "Restarting...");
+    const { ok, body } = await callJson("/api/device/restart", deviceOverrides());
+    show("out-device-restart", ok, ok ? body.message : (body.error || body));
   },
 
   async "door-lock"(btn) {

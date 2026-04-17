@@ -36,6 +36,14 @@ public sealed record AttLog(
     int WorkCode
 );
 
+public sealed record UserValidity(
+    string EnrollNumber,
+    bool Expires,
+    int ValidCount,
+    string StartDate,
+    string EndDate
+);
+
 public sealed record AdminLog(
     string Admin,
     string Target,

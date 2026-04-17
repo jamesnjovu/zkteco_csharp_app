@@ -376,7 +376,61 @@ public sealed class DeviceClient : IDisposable
         catch { return $"{y:D4}-{mo:D2}-{d:D2} {h:D2}:{mi:D2}:{s:D2}"; }
     }
 
+    // ---------- Delete templates ----------
+
+    public void DeleteFingerTemplate(string enrollNumber, int fingerIndex)
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.SSR_DelUserTmpExt(MachineNumber, enrollNumber, fingerIndex);
+            if (!ok) throw new IOException($"SSR_DelUserTmpExt failed for {enrollNumber} finger={fingerIndex}: {LastError()}");
+        });
+    }
+
+    public void DeleteFaceTemplate(string enrollNumber, int faceIndex = 50)
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.DelUserFace(MachineNumber, enrollNumber, faceIndex);
+            if (!ok) throw new IOException($"DelUserFace failed for {enrollNumber} face={faceIndex}: {LastError()}");
+        });
+    }
+
+    // ---------- User validity ----------
+
+    public UserValidity GetUserValidDate(string enrollNumber)
+    {
+        return _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.GetUserValidDate(MachineNumber, enrollNumber, out int expires, out int validCount, out string startDate, out string endDate);
+            if (!ok) return new UserValidity(enrollNumber, false, 0, "", "");
+            return new UserValidity(enrollNumber, expires == 1, validCount, startDate ?? "", endDate ?? "");
+        });
+    }
+
+    public void SetUserValidDate(string enrollNumber, bool expires, string startDate, string endDate)
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            bool ok = _czkem!.SetUserValidDate(MachineNumber, enrollNumber, expires ? 1 : 0, 0, startDate, endDate);
+            if (!ok) throw new IOException($"SetUserValidDate failed for {enrollNumber}: {LastError()}");
+        });
+    }
+
     // ---------- Device ----------
+
+    public void RestartDevice()
+    {
+        _sta.Invoke(() =>
+        {
+            Require();
+            _czkem!.RestartDevice(MachineNumber);
+        });
+    }
 
     public void PlayVoice(int index)
     {

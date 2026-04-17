@@ -426,6 +426,84 @@ app.MapPost("/api/attendance/delete-before", async (HttpRequest req) =>
     });
 });
 
+// ------------- /api/template/finger/delete -
+app.MapPost("/api/template/finger/delete", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var enroll = GetStr(body, "enrollNumber");
+    var finger = GetInt(body, "fingerIndex") ?? 0;
+    if (string.IsNullOrWhiteSpace(enroll)) return Err("Supply enrollNumber", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.DeleteFingerTemplate(enroll, finger);
+        return Results.Json(new { ok = true, message = $"Fingerprint template deleted for {enroll} finger={finger}" }, jsonOpts);
+    });
+});
+
+// ------------- /api/template/face/delete ---
+app.MapPost("/api/template/face/delete", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var enroll = GetStr(body, "enrollNumber");
+    var faceIndex = GetInt(body, "faceIndex") ?? 50;
+    if (string.IsNullOrWhiteSpace(enroll)) return Err("Supply enrollNumber", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.DeleteFaceTemplate(enroll, faceIndex);
+        return Results.Json(new { ok = true, message = $"Face template deleted for {enroll} face={faceIndex}" }, jsonOpts);
+    });
+});
+
+// ------------- /api/user/validity ----------
+app.MapPost("/api/user/validity", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var enroll = GetStr(body, "enrollNumber");
+    if (string.IsNullOrWhiteSpace(enroll)) return Err("Supply enrollNumber", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        var v = client.GetUserValidDate(enroll);
+        return Results.Json(new { ok = true, validity = v }, jsonOpts);
+    });
+});
+
+// ------------- /api/user/validity/set ------
+app.MapPost("/api/user/validity/set", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+    var enroll = GetStr(body, "enrollNumber");
+    var startDate = GetStr(body, "startDate") ?? "";
+    var endDate = GetStr(body, "endDate") ?? "";
+    var expires = body.TryGetValue("expires", out var ev) && ev.ValueKind != JsonValueKind.False;
+    if (string.IsNullOrWhiteSpace(enroll)) return Err("Supply enrollNumber", 400);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.SetUserValidDate(enroll, expires, startDate, endDate);
+        return Results.Json(new { ok = true, message = $"Validity set for {enroll}: {(expires ? $"{startDate} to {endDate}" : "no expiry")}" }, jsonOpts);
+    });
+});
+
+// ------------- /api/device/restart ---------
+app.MapPost("/api/device/restart", async (HttpRequest req) =>
+{
+    var body = await ReadBodyAsync(req);
+    var p = DeviceParams(body, cfg);
+
+    return await WithDeviceAsync(p, deviceLock, client =>
+    {
+        client.RestartDevice();
+        return Results.Json(new { ok = true, message = "Device restarting..." }, jsonOpts);
+    });
+});
+
 // ------------- /api/device/voice -----------
 app.MapPost("/api/device/voice", async (HttpRequest req) =>
 {
