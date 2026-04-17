@@ -1,8 +1,36 @@
+# Build output
 bin/
 obj/
+publish/
+dist/
+
+# IDE
 *.user
+*.suo
 .vs/
 .idea/
+*.DotSettings.user
+
+# Config (contains client-specific device IPs)
 config.json
+
+# Downloaded templates
 storage/templates/*/
 !storage/templates/.gitkeep
+
+# SDK binaries (large, machine-specific)
+sdk/x64/
+sdk/x86/
+sdk/Interop.zkemkeeper.dll
+
+# Test projects
+tests/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+logs/
+*.log

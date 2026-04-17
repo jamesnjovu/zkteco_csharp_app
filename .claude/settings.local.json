@@ -14,7 +14,12 @@
       "Bash(powershell -c ' *)",
       "Bash(powershell -c \"Get-Process dotnet -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(export PATH=\"C:/Users/v1p3r/Documents/Softwares/ZktBridge/sdk/x64:$PATH\")",
-      "Bash(dotnet clean *)"
+      "Bash(dotnet clean *)",
+      "Bash(powershell -c 'Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch '\\\\''Loopback'\\\\'' -and $_.IPAddress -ne '\\\\''127.0.0.1'\\\\'' } | Select-Object IPAddress, InterfaceAlias | Format-Table -AutoSize')",
+      "Bash(powershell -c \"Test-NetConnection -ComputerName 10.227.119.90 -Port 5000 -WarningAction SilentlyContinue | Select-Object TcpTestSucceeded\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File build-release.ps1)",
+      "Bash(mv API_DOCS.md docs/api-reference.md)",
+      "Bash(mv DEPLOYMENT.md docs/deployment.md)"
     ]
   }
 }

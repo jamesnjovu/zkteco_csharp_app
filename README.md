@@ -1,169 +1,172 @@
-# zkteco_csharp_app — How to Run
+# GymSync.Zkt — ZKTeco C# Middleware
 
-.NET 8 (ASP.NET Core) **+ browser UI** for moving face and fingerprint templates to/from a ZKTeco device using the official `zkemkeeper` COM SDK.
+HTTP/JSON middleware between the GymSync Elixir reception app and ZKTeco biometric devices. Runs as a Windows service on the client PC.
 
-Scope is intentionally narrow: **list users, download templates, upload templates.** No attendance, no door access, no SMS.
-
----
-
-## 1. Platform requirements
-
-| | |
-|---|---|
-| **OS** | Windows (x86 or x64) |
-| **.NET** | .NET SDK 8.0+ |
-| **ZKTeco SDK** | `zkemkeeper.dll` registered on the host |
-
-> The ZKTeco C# library is a COM component that is **Windows-only** — it cannot run on Linux or macOS. Build on macOS if you like (VS Code / Rider), but run it on Windows.
-
-Install the SDK (download from ZKTeco / ZKFinger vendor package) and register it:
-
-```powershell
-# from an elevated PowerShell, in the folder containing zkemkeeper.dll
-regsvr32 zkemkeeper.dll
+```
+                                                          ┌──────────────┐
+                                                     ┌──> │ Device 1 (IN)│
+┌──────────────┐    HTTP/JSON    ┌────────────────┐  │    └──────────────┘
+│  Elixir App  │ ──────────────> │ C# Middleware  │──┤
+│  (Reception) │ <────────────── │ (this app)     │  │    ┌───────────────┐
+└──────────────┘   /api/v1/*     └────────────────┘  └──> │ Device 2 (OUT)│
+                                     COM / TCP            └───────────────┘
 ```
 
-Verify the ProgID exists:
+## What it does
 
-```powershell
-powershell -c "[Type]::GetTypeFromProgID('zkemkeeper.CZKEM')"
-```
+- Manages users, fingerprints, and faces across multiple ZKTeco devices
+- Syncs biometric templates from an enrollment device to all other devices in one API call
+- Polls attendance logs from all devices
+- Controls doors, device time, voice prompts, restart
+- Browser-based test UI for manual testing
+- Installs as a Windows service with auto-start on boot
 
-Non-null output means the COM class is registered.
+## Quick start (development)
 
----
+### Prerequisites
 
-## 2. Build
+- Windows (ZKTeco SDK is COM/Windows-only)
+- .NET SDK 8.0+
+- ZKTeco SDK — `zkemkeeper.dll` registered and helper DLLs in `sdk/x64/` (see [SDK Setup](docs/sdk-setup.md))
+
+### Run
 
 ```bash
-cd zkteco_csharp_app
-dotnet restore
-dotnet build -c Release
-```
-
----
-
-## 3. Configure
-
-```bash
+# 1. Copy and edit config
 cp config.example.json config.json
+
+# 2. Build and run
+dotnet restore
+dotnet run --project src/GymSync.Zkt.WebUI
+
+# 3. Open http://localhost:5000
 ```
 
-`config.json`:
+## Production deployment
+
+Build on your dev PC, copy one folder to the client, double-click to install:
+
+```powershell
+# On your dev PC
+.\build-release.ps1
+```
+
+This creates `dist\GymSyncZkt\` — a self-contained package (no .NET runtime install needed on the client).
+
+```
+# On the client PC
+1. Copy dist\GymSyncZkt\ to the client
+2. Edit config.json with the client's device IPs
+3. Right-click INSTALL.bat -> Run as Administrator
+```
+
+The installer registers the SDK, installs the Windows service, opens the firewall, and starts it. Auto-starts on every boot.
+
+See [Deployment Guide](docs/deployment.md) for full details.
+
+## API
+
+Two API layers serve different consumers:
+
+| Layer | Base path | Consumer | Purpose |
+|---|---|---|---|
+| Test UI | `/api/*` | Browser | Manual testing via the web UI |
+| V1 API | `/api/v1/*` | Elixir app | Programmatic access, multi-device workflows |
+
+### Key endpoints
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/v1/connect` | Test connection to a device |
+| `GET  /api/v1/devices` | List all configured devices |
+| `POST /api/v1/users` | List users on a device |
+| `POST /api/v1/users/create` | Create a user |
+| `POST /api/v1/templates/all` | Get all fingerprint + face templates for a user |
+| `POST /api/v1/templates/upload` | Upload all templates to a device |
+| `POST /api/v1/sync/user` | Sync user + templates from source to specific targets |
+| `POST /api/v1/sync/user/all` | Sync user + templates to ALL configured devices |
+| `POST /api/v1/attendance/new` | Get new attendance logs since last poll |
+
+Every request targets a specific device via `ip` and `port` in the body:
+
+```json
+POST /api/v1/sync/user/all
+{
+  "sourceIp": "10.121.0.206",
+  "enrollNumber": "1001"
+}
+```
+
+See [API Reference](docs/api-reference.md) for all 30+ endpoints with request/response examples.
+
+## Configuration
 
 ```json
 {
   "device": {
-    "ip": "192.168.1.201",
+    "ip": "10.121.0.206",
     "port": 4370,
     "password": 0,
     "timeout": 10,
     "machineNumber": 1
   },
-  "storage": { "path": "storage/templates" },
-  "web":     { "host": "127.0.0.1", "port": 5000 }
+  "devices": [
+    { "name": "entrance", "ip": "10.121.0.206", "port": 4370 },
+    { "name": "exit", "ip": "10.121.0.207", "port": 4370 }
+  ],
+  "storage": {
+    "path": "storage/templates"
+  },
+  "web": {
+    "host": "0.0.0.0",
+    "port": 5000
+  }
 }
 ```
 
-Environment overrides (applied on top of the file):
+- `device` — default device when `ip`/`port` are omitted from API requests
+- `devices` — all devices on the network, used by `/api/v1/sync/user/all` and `/api/v1/devices`
+- `web.host` — `0.0.0.0` to accept connections from other machines, `127.0.0.1` for localhost only
 
-| Var | Maps to |
-|---|---|
-| `ZKT_IP` | `device.ip` |
-| `ZKT_PORT` | `device.port` |
-| `ZKT_PASSWORD` | `device.password` |
-| `ZKT_TIMEOUT` | `device.timeout` |
-| `ZKT_MACHINE` | `device.machineNumber` |
-
----
-
-## 4. Run the web UI
-
-```bash
-dotnet run --project src/GymSync.Zkt.WebUI
-```
-
-Open the printed URL (default `http://127.0.0.1:5000`). Bind on LAN by setting `web.host = "0.0.0.0"` in `config.json`.
-
-### What's on the page
-
-| # | Card | Calls |
-|---|---|---|
-| 0 | **Device connection** | Overrides IP / port / password / timeout / machine number for the browser session. |
-| 1 | **List users** | `POST /api/users` → `ReadAllUserID` + `SSR_GetAllUserInfo` loop |
-| 2 | **Download templates** | `POST /api/download` → `GetUserTmpExStr` (fingers 0–9) + `GetUserFaceStr` (faces 50–54) |
-| 3 | **Upload templates** | `POST /api/upload` → `SetUserTmpExStr` + `SetUserFaceStr` |
-| 4 | **Local storage** | `GET /api/storage` — lists downloaded manifests |
-
-Every card renders the raw JSON response in its output panel (green = ok, red = error).
-
----
-
-## 5. Storage layout
-
-```
-storage/templates/192.168.1.201/1001/
-├── manifest.json
-├── finger_0.bin
-├── finger_1.bin
-└── face_50.bin
-```
-
-Matches the sibling `zkteco_python_app` / `zkteco_nodejs_app` layouts byte-for-byte — templates downloaded by any of them are interchangeable.
-
----
-
-## 6. Scripted use (no UI)
-
-```csharp
-using GymSync.Zkt.Core;
-
-using var dev = new DeviceClient("192.168.1.201", 4370, machineNumber: 1);
-dev.Connect(commPassword: 0, timeoutSeconds: 10);
-
-foreach (var u in dev.ListUsers())
-    Console.WriteLine($"{u.EnrollNumber}\t{u.Name}\t{u.Privilege}");
-
-var face = dev.GetFaceTemplate("1001", faceIndex: 50);
-File.WriteAllBytes("face.bin", face ?? Array.Empty<byte>());
-
-// …later, on a different device:
-using var other = new DeviceClient("192.168.1.202");
-other.Connect();
-other.SetFaceTemplate("1001", File.ReadAllBytes("face.bin"), faceIndex: 50);
-```
-
----
-
-## 7. Troubleshooting
-
-| Symptom | Likely cause / fix |
-|---|---|
-| `COM ProgID 'zkemkeeper.CZKEM' not found` | SDK not installed, or `zkemkeeper.dll` not registered — run `regsvr32 zkemkeeper.dll` as admin |
-| `Cannot connect to ZKTeco device at …` | Wrong IP, wrong comm password, firewall blocking TCP 4370 |
-| `Target enrollNumber X not found on device` | Create the user record on the device's own UI first — template upload does not create users |
-| App builds on Mac/Linux but dies at runtime | `zkemkeeper` is Windows COM — run on Windows |
-| UI hangs on a second tab | Expected — device accepts one client at a time; the API serialises all device calls behind a semaphore |
-| Empty `face_50.bin` / missing slots | User has no face / fingerprint enrolled in that slot |
-
----
-
-## 8. Layout
+## Project layout
 
 ```
 zkteco_csharp_app/
 ├── GymSync.Zkt.sln
-├── config.example.json
-├── README.md
+├── config.example.json            # Template config
+├── build-release.ps1              # Builds installer package
+│
 ├── src/
-│   ├── GymSync.Zkt.Core/          # COM wrapper + template store
-│   │   ├── Config.cs
-│   │   ├── DeviceClient.cs        # late-bound zkemkeeper.CZKEM
-│   │   ├── TemplateStore.cs
-│   │   └── Models.cs
-│   └── GymSync.Zkt.WebUI/         # ASP.NET Core minimal API + static UI
-│       ├── Program.cs
-│       ├── appsettings.json
-│       └── wwwroot/{index.html,app.css,app.js}
-└── storage/templates/             # downloaded templates (gitignored)
+│   ├── GymSync.Zkt.Core/          # Device logic (no web dependency)
+│   │   ├── DeviceClient.cs        # All ZKTeco SDK operations
+│   │   ├── StaExecutor.cs         # STA thread for COM calls
+│   │   ├── Models.cs              # DTOs
+│   │   ├── Config.cs              # Config loading
+│   │   └── TemplateStore.cs       # Local template file storage
+│   │
+│   └── GymSync.Zkt.WebUI/         # ASP.NET Core web layer
+│       ├── Program.cs             # Test UI API routes (/api/*)
+│       ├── ApiV1.cs               # Elixir API routes (/api/v1/*)
+│       └── wwwroot/               # Browser test UI
+│
+├── sdk/                           # ZKTeco SDK binaries (gitignored)
+├── install/                       # install.ps1, uninstall.ps1
+├── storage/templates/             # Downloaded templates (gitignored)
+│
+└── docs/
+    ├── api-reference.md           # Full API documentation
+    ├── architecture.md            # System design & data flows
+    ├── deployment.md              # Build & install as Windows service
+    ├── elixir-integration.md      # Elixir client examples
+    └── sdk-setup.md               # ZKTeco SDK setup & troubleshooting
 ```
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [API Reference](docs/api-reference.md) | All endpoints with request/response examples |
+| [Architecture](docs/architecture.md) | System diagram, design decisions, data flows |
+| [Deployment](docs/deployment.md) | Build, install on client PC, run as Windows service |
+| [Elixir Integration](docs/elixir-integration.md) | HTTP client module, code examples, typical workflows |
+| [SDK Setup](docs/sdk-setup.md) | ZKTeco SDK installation, registration, troubleshooting |
