@@ -7,9 +7,22 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>GymSync.Zkt.Core</RootNamespace>
     <AssemblyName>GymSync.Zkt.Core</AssemblyName>
-    <!-- Late-bound COM access to zkemkeeper.CZKEM via Type.GetTypeFromProgID.
-         No TLB import required at build time; the ZKTeco SDK (zkemkeeper.dll)
-         must be registered on the runtime host: regsvr32 zkemkeeper.dll -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Interop.zkemkeeper">
+      <HintPath>..\..\sdk\Interop.zkemkeeper.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy interop + native SDK DLLs (tcpcomm, comms, etc.) needed at runtime -->
+  <Target Name="CopySdkDlls" AfterTargets="Build">
+    <Copy SourceFiles="..\..\sdk\Interop.zkemkeeper.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <NativeSdkDlls Include="..\..\sdk\x64\*.dll" Exclude="..\..\sdk\x64\zkemkeeper.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeSdkDlls)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

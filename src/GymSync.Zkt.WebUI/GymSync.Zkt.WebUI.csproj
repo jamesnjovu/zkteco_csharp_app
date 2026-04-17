@@ -13,4 +13,12 @@
     <ProjectReference Include="..\GymSync.Zkt.Core\GymSync.Zkt.Core.csproj" />
   </ItemGroup>
 
+  <!-- Copy native ZKTeco SDK DLLs needed by zkemkeeper.dll at runtime -->
+  <Target Name="CopyNativeSdkDlls" AfterTargets="Build">
+    <ItemGroup>
+      <NativeSdkDlls Include="..\..\sdk\x64\*.dll" Exclude="..\..\sdk\x64\zkemkeeper.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeSdkDlls)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

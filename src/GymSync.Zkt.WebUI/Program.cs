@@ -1,8 +1,20 @@
+using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using GymSync.Zkt.Core;
 
 [assembly: SupportedOSPlatform("windows")]
+
+// COM interop DLL is not in deps.json — resolve it from the output directory.
+System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (ctx, name) =>
+{
+    if (name.Name == "Interop.zkemkeeper")
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Interop.zkemkeeper.dll");
+        if (File.Exists(path)) return ctx.LoadFromAssemblyPath(path);
+    }
+    return null;
+};
 
 // --- Resolve project root (two levels up from bin/Debug/net8.0-windows) --------------
 string ProjectRoot()

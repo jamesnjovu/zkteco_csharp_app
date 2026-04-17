@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet restore *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet run *)",
+      "Bash(powershell -Command \"Start-Process regsvr32 -ArgumentList 'C:\\\\Users\\\\v1p3r\\\\Documents\\\\Softwares\\\\ZktBridge\\\\sdk\\\\x64\\\\zkemkeeper.dll' -Verb RunAs -Wait\")",
+      "Bash(powershell -c \"[Type]::GetTypeFromProgID\\('zkemkeeper.CZKEM'\\)\")",
+      "Bash(powershell -Command \"Start-Process 'C:\\\\Windows\\\\SysWOW64\\\\regsvr32.exe' -ArgumentList 'C:\\\\Users\\\\v1p3r\\\\Documents\\\\Softwares\\\\ZktBridge\\\\sdk\\\\x86\\\\zkemkeeper.dll' -Verb RunAs -Wait\")",
+      "Bash(powershell -c 'Get-ChildItem '\\\\''HKLM:\\\\SOFTWARE\\\\Classes'\\\\'' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\\\\''zkemkeeper'\\\\'' } | Select-Object -ExpandProperty Name')",
+      "Bash(powershell -c \"Get-Process -Name 'GymSync.Zkt.WebUI' -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(powershell -c 'Get-Process dotnet -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq '\\\\'''\\\\'' } | Stop-Process -Force')",
+      "Bash(powershell -c \"Test-NetConnection -ComputerName 10.121.0.206 -Port 4370 -WarningAction SilentlyContinue | Select-Object TcpTestSucceeded, PingSucceeded\")",
+      "Bash(powershell -c ' *)",
+      "Bash(powershell -c \"Get-Process dotnet -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(export PATH=\"C:/Users/v1p3r/Documents/Softwares/ZktBridge/sdk/x64:$PATH\")",
+      "Bash(dotnet clean *)"
+    ]
+  }
+}
