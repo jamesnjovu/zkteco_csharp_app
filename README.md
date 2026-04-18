@@ -31,16 +31,37 @@ HTTP/JSON middleware between the GymSync Elixir reception app and ZKTeco biometr
 
 ### Run
 
-```bash
+```powershell
 # 1. Copy and edit config
-cp config.example.json config.json
+copy config.example.json config.json
 
-# 2. Build and run
+# 2. If the Windows service is installed, stop it first — it locks the build output DLLs
+sc.exe stop GymSyncZkt
+
+# 3. Build and run (from the repo root)
 dotnet restore
 dotnet run --project src/GymSync.Zkt.WebUI
 
-# 3. Open http://localhost:5000
+# 4. Open http://localhost:5000
 ```
+
+Stop with `Ctrl+C` in the terminal. If a previous `dotnet run` is still holding the port, find and kill it:
+
+```powershell
+netstat -ano | findstr :5000
+taskkill /PID <pid> /F
+```
+
+### When to use `dotnet run`
+
+| Situation | Use |
+|---|---|
+| Actively editing code and want to test changes | `dotnet run --project src/GymSync.Zkt.WebUI` (rebuilds on each launch) |
+| Want auto-restart on file save | `dotnet watch --project src/GymSync.Zkt.WebUI run` |
+| Just need it running on the dev PC (no code changes) | Start the installed service: `sc.exe start GymSyncZkt` |
+| Running on the client PC | Always the Windows service — see [Production deployment](#production-deployment) |
+
+Never run `dotnet run` and the Windows service at the same time — both bind to port 5000 and the service's locked DLLs will fail the dev build.
 
 ## Production deployment
 
