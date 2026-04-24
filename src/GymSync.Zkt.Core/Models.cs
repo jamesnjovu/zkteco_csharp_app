@@ -20,6 +20,11 @@ public sealed record FaceTemplateData(
     int Bytes
 );
 
+public sealed record FaceTemplateBytes(
+    byte[] Template,
+    int Size
+);
+
 public sealed record UserTemplates(
     string EnrollNumber,
     List<FingerTemplateData> Fingerprints,

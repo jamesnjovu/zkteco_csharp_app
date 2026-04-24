@@ -263,12 +263,12 @@ app.MapPost("/api/template/face", async (HttpRequest req) =>
 
     return await WithDeviceAsync(p, deviceLock, client =>
     {
-        var tpl = client.GetFaceTemplate(enroll, faceIndex);
-        if (tpl is null)
+        var face = client.GetFaceTemplate(enroll, faceIndex);
+        if (face is null)
             return Results.Json(new { ok = true, found = false, enrollNumber = enroll, faceIndex, template = (string?)null }, jsonOpts);
 
-        var b64 = Convert.ToBase64String(tpl);
-        return Results.Json(new { ok = true, found = true, enrollNumber = enroll, faceIndex, bytes = tpl.Length, template = b64 }, jsonOpts);
+        var b64 = Convert.ToBase64String(face.Template);
+        return Results.Json(new { ok = true, found = true, enrollNumber = enroll, faceIndex, bytes = face.Size, template = b64 }, jsonOpts);
     });
 });
 
@@ -302,6 +302,7 @@ app.MapPost("/api/template/face/upload", async (HttpRequest req) =>
     var enroll = GetStr(body, "enrollNumber");
     var faceIndex = GetInt(body, "faceIndex") ?? 50;
     var template = GetStr(body, "template");
+    var size = GetInt(body, "bytes");
     if (string.IsNullOrWhiteSpace(enroll)) return Err("Supply enrollNumber", 400);
     if (string.IsNullOrWhiteSpace(template)) return Err("Supply template (base64)", 400);
 
@@ -311,7 +312,7 @@ app.MapPost("/api/template/face/upload", async (HttpRequest req) =>
 
     return await WithDeviceAsync(p, deviceLock, client =>
     {
-        client.SetFaceTemplate(enroll, tpl, faceIndex);
+        client.SetFaceTemplate(enroll, tpl, size ?? tpl.Length, faceIndex);
         return Results.Json(new { ok = true, message = $"Face template uploaded for {enroll} face={faceIndex}" }, jsonOpts);
     });
 });

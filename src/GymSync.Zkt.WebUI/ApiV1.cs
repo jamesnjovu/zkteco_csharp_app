@@ -350,9 +350,9 @@ public static class ApiV1
 
             return await With(p, deviceLock, client =>
             {
-                var tpl = client.GetFaceTemplate(enroll, faceIndex);
-                if (tpl is null) return Ok(new { enrollNumber = enroll, faceIndex, found = false, template = (string?)null });
-                return Ok(new { enrollNumber = enroll, faceIndex, found = true, template = Convert.ToBase64String(tpl), bytes = tpl.Length });
+                var face = client.GetFaceTemplate(enroll, faceIndex);
+                if (face is null) return Ok(new { enrollNumber = enroll, faceIndex, found = false, template = (string?)null });
+                return Ok(new { enrollNumber = enroll, faceIndex, found = true, template = Convert.ToBase64String(face.Template), bytes = face.Size });
             });
         });
 
@@ -389,9 +389,11 @@ public static class ApiV1
             try { tpl = Convert.FromBase64String(template); }
             catch { return Err("Invalid base64 template", 400); }
 
+            var size = Int(b, "bytes") ?? tpl.Length;
+
             return await With(p, deviceLock, client =>
             {
-                client.SetFaceTemplate(enroll, tpl, Int(b, "faceIndex") ?? 50);
+                client.SetFaceTemplate(enroll, tpl, size, Int(b, "faceIndex") ?? 50);
                 return Ok(new { enrollNumber = enroll, faceIndex = Int(b, "faceIndex") ?? 50, action = "uploaded" });
             });
         });

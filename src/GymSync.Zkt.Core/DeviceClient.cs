@@ -172,10 +172,39 @@ public sealed class DeviceClient : IDisposable
         _sta.Invoke(() =>
         {
             Require();
-            if (!int.TryParse(enrollNumber, out var uid))
-                throw new ArgumentException($"enrollNumber must be numeric for face enrollment: {enrollNumber}");
-            bool ok = _czkem!.StartEnroll(uid, 50);
-            if (!ok) throw new IOException($"StartEnroll(face) failed for {enrollNumber}: {LastError()}");
+
+            if (!_czkem!.SSR_GetUserInfo(MachineNumber, enrollNumber, out _, out _, out _, out _))
+            {
+                if (!_czkem!.SSR_SetUserInfo(MachineNumber, enrollNumber, "", "", 0, true))
+                    throw new IOException(
+                        $"User {enrollNumber} does not exist on device and could not be auto-created: {LastError()}. " +
+                        $"Create the user first, then start face enrollment.");
+            }
+
+            try { _czkem!.CancelOperation(); } catch { }
+
+            bool alreadyDisabled = _disabled;
+            if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, false);
+
+            int err50 = 0, err10 = 0;
+            try
+            {
+                if (_czkem!.StartEnrollEx(enrollNumber, 50, 1)) return;
+                err50 = LastError();
+
+                if (_czkem!.StartEnrollEx(enrollNumber, 10, 1)) return;
+                err10 = LastError();
+            }
+            finally
+            {
+                if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, true);
+            }
+
+            throw new IOException(
+                $"StartEnrollEx(face) failed for {enrollNumber}: " +
+                $"slot=50 err={err50}, slot=10 err={err10}. " +
+                $"Error 0 usually means the firmware rejected the call before reaching the device " +
+                $"(method not supported for faces on this firmware, or device busy).");
         });
     }
 
@@ -221,7 +250,7 @@ public sealed class DeviceClient : IDisposable
 
     // ---------- Faces ----------
 
-    public byte[]? GetFaceTemplate(string enrollNumber, int faceIndex = 50)
+    public FaceTemplateBytes? GetFaceTemplate(string enrollNumber, int faceIndex = 50)
     {
         return _sta.Invoke(() =>
         {
@@ -233,18 +262,53 @@ public sealed class DeviceClient : IDisposable
                 MachineNumber, enrollNumber, faceIndex, ref tmpData, ref tmpLength);
 
             if (!ok || string.IsNullOrEmpty(tmpData) || tmpLength == 0) return null;
-            return System.Text.Encoding.UTF8.GetBytes(tmpData);
+            return new FaceTemplateBytes(System.Text.Encoding.UTF8.GetBytes(tmpData), tmpLength);
         });
     }
 
-    public void SetFaceTemplate(string enrollNumber, byte[] template, int faceIndex = 50)
+    public void SetFaceTemplate(string enrollNumber, byte[] template, int size, int faceIndex = 50)
     {
         _sta.Invoke(() =>
         {
             Require();
+
+            if (!_czkem!.SSR_GetUserInfo(MachineNumber, enrollNumber, out _, out _, out _, out _))
+            {
+                if (!_czkem!.SSR_SetUserInfo(MachineNumber, enrollNumber, "", "", 0, true))
+                    throw new IOException(
+                        $"User {enrollNumber} does not exist on device and could not be auto-created: {LastError()}. " +
+                        $"Create the user first, then upload the face.");
+            }
+
             string tmpData = System.Text.Encoding.UTF8.GetString(template);
-            bool ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, tmpData.Length);
-            if (!ok) throw new IOException($"SetUserFaceStr failed for {enrollNumber} slot={faceIndex}: {LastError()}");
+
+            bool alreadyDisabled = _disabled;
+            if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, false);
+
+            try
+            {
+                bool ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, size);
+                if (!ok)
+                {
+                    int err1 = LastError();
+                    ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, tmpData.Length);
+                    if (!ok)
+                    {
+                        int err2 = LastError();
+                        throw new IOException(
+                            $"SetUserFaceStr failed for {enrollNumber} slot={faceIndex}: " +
+                            $"err={err1} (size={size}), retry err={err2} (size={tmpData.Length}). " +
+                            $"-103 typically means the target device runs a different face algorithm than the source " +
+                            $"(e.g. ZKFace 5.0 vs 7.0 vs Visible Light). Check firmware/platform on both devices; " +
+                            $"if they differ, the face must be re-enrolled on the target.");
+                    }
+                }
+                _czkem!.RefreshData(MachineNumber);
+            }
+            finally
+            {
+                if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, true);
+            }
         });
     }
 
@@ -405,7 +469,7 @@ public sealed class DeviceClient : IDisposable
                     && !string.IsNullOrEmpty(tmpData) && tmpLength > 0)
                 {
                     var bytes = System.Text.Encoding.UTF8.GetBytes(tmpData);
-                    faces.Add(new FaceTemplateData(i, Convert.ToBase64String(bytes), bytes.Length));
+                    faces.Add(new FaceTemplateData(i, Convert.ToBase64String(bytes), tmpLength));
                 }
             }
 
@@ -442,7 +506,7 @@ public sealed class DeviceClient : IDisposable
                 {
                     var tpl = Convert.FromBase64String(f.Template);
                     string tmpData = System.Text.Encoding.UTF8.GetString(tpl);
-                    if (_czkem!.SetUserFaceStr(MachineNumber, enrollNumber, f.Index, tmpData, tmpData.Length))
+                    if (_czkem!.SetUserFaceStr(MachineNumber, enrollNumber, f.Index, tmpData, f.Bytes))
                         uploadedFaces++;
                     else
                         errors.Add($"face[{f.Index}]: SDK error {LastError()}");
@@ -471,8 +535,14 @@ public sealed class DeviceClient : IDisposable
         _sta.Invoke(() =>
         {
             Require();
-            bool ok = _czkem!.DelUserFace(MachineNumber, enrollNumber, faceIndex);
-            if (!ok) throw new IOException($"DelUserFace failed for {enrollNumber} face={faceIndex}: {LastError()}");
+            if (_czkem!.SSR_DeleteEnrollData(MachineNumber, enrollNumber, faceIndex)) return;
+            int ssrErr = LastError();
+
+            if (_czkem!.DelUserFace(MachineNumber, enrollNumber, faceIndex)) return;
+            int delErr = LastError();
+
+            throw new IOException(
+                $"Delete face failed for {enrollNumber} face={faceIndex}: SSR_DeleteEnrollData={ssrErr}, DelUserFace={delErr}");
         });
     }
 
