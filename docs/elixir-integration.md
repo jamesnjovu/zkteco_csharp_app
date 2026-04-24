@@ -9,8 +9,8 @@ How to call the C# middleware from an Elixir/Phoenix application.
 The middleware runs as a Windows service at `http://<middleware-ip>:5000`. All Elixir HTTP calls go to this base URL.
 
 ```elixir
-# config/config.exs
-config :gym_sync, :zkt_middleware,
+# config/config.exs (in gym_sync_reception — its OTP app name is :app)
+config :app, :zkt_middleware,
   base_url: "http://10.121.0.200:5000/api/v1",
   timeout: 30_000
 ```
@@ -23,8 +23,8 @@ Using `Req` (recommended) or `HTTPoison`:
 
 ```elixir
 defmodule GymSync.Zkt.Client do
-  @base_url Application.compile_env!(:gym_sync, [:zkt_middleware, :base_url])
-  @timeout Application.compile_env!(:gym_sync, [:zkt_middleware, :timeout])
+  @base_url Application.compile_env!(:app, [:zkt_middleware, :base_url])
+  @timeout Application.compile_env!(:app, [:zkt_middleware, :timeout])
 
   def call(endpoint, body \\ %{}) do
     url = "#{@base_url}#{endpoint}"
