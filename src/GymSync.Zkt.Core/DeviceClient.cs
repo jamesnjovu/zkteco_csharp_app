@@ -142,6 +142,7 @@ public sealed class DeviceClient : IDisposable
             Require();
             bool ok = _czkem!.SSR_SetUserInfo(MachineNumber, enrollNumber, name, password, privilege, enabled);
             if (!ok) throw new IOException($"SSR_SetUserInfo failed for {enrollNumber}: {LastError()}");
+            _czkem!.RefreshData(MachineNumber);
         });
     }
 
