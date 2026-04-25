@@ -281,34 +281,31 @@ public sealed class DeviceClient : IDisposable
             }
 
             string tmpData = System.Text.Encoding.UTF8.GetString(template);
+            // SDK expects the string length (char count), not the UTF-8 byte count.
+            // For ASCII-only face templates these are equal; for others, char count is authoritative.
+            int charSize = tmpData.Length;
 
-            bool alreadyDisabled = _disabled;
-            if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, false);
+            // NOTE: Do NOT call EnableDevice(false) here. The face module on many ZKTeco devices
+            // requires the device to remain ENABLED during SetUserFaceStr. Disabling the device
+            // shuts down the face processing unit and causes error -103. Finger templates do not
+            // have this restriction (SetFingerTemplate never disables the device).
 
-            try
+            // Clear any existing template at this slot before writing — some firmware rejects
+            // overwriting an occupied slot. Ignore return values; empty slot is fine.
+            _czkem!.SSR_DeleteEnrollData(MachineNumber, enrollNumber, faceIndex);
+            _czkem!.DelUserFace(MachineNumber, enrollNumber, faceIndex);
+
+            bool ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, charSize);
+            if (!ok)
             {
-                bool ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, size);
-                if (!ok)
-                {
-                    int err1 = LastError();
-                    ok = _czkem!.SetUserFaceStr(MachineNumber, enrollNumber, faceIndex, tmpData, tmpData.Length);
-                    if (!ok)
-                    {
-                        int err2 = LastError();
-                        throw new IOException(
-                            $"SetUserFaceStr failed for {enrollNumber} slot={faceIndex}: " +
-                            $"err={err1} (size={size}), retry err={err2} (size={tmpData.Length}). " +
-                            $"-103 typically means the target device runs a different face algorithm than the source " +
-                            $"(e.g. ZKFace 5.0 vs 7.0 vs Visible Light). Check firmware/platform on both devices; " +
-                            $"if they differ, the face must be re-enrolled on the target.");
-                    }
-                }
-                _czkem!.RefreshData(MachineNumber);
+                int err = LastError();
+                throw new IOException(
+                    $"SetUserFaceStr failed for {enrollNumber} slot={faceIndex}: err={err} (size={charSize}). " +
+                    $"-103 typically means the target device runs a different face algorithm than the source " +
+                    $"(e.g. ZKFace 5.0 vs 7.0 vs Visible Light). Check firmware/platform on both devices; " +
+                    $"if they differ, the face must be re-enrolled on the target.");
             }
-            finally
-            {
-                if (!alreadyDisabled) _czkem!.EnableDevice(MachineNumber, true);
-            }
+            _czkem!.RefreshData(MachineNumber);
         });
     }
 

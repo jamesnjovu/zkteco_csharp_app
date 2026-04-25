@@ -280,10 +280,14 @@ const actions = {
     const enroll = $("tpl-face-up-enroll").value.trim();
     const faceIndex = parseInt($("tpl-face-up-index").value, 10) || 50;
     const template = $("tpl-face-up-data").value.trim();
+    const bytesRaw = $("tpl-face-up-bytes").value.trim();
+    const bytes = bytesRaw ? parseInt(bytesRaw, 10) : undefined;
     if (!enroll) return show("out-upload-face-tpl", false, "Enter enroll number");
     if (!template) return show("out-upload-face-tpl", false, "Paste template data");
     show("out-upload-face-tpl", true, "Uploading...");
-    const { ok, body } = await callJson("/api/template/face/upload", { ...deviceOverrides(), enrollNumber: enroll, faceIndex, template });
+    const payload = { ...deviceOverrides(), enrollNumber: enroll, faceIndex, template };
+    if (bytes) payload.bytes = bytes;
+    const { ok, body } = await callJson("/api/template/face/upload", payload);
     show("out-upload-face-tpl", ok, ok ? body.message : (body.error || body));
   },
 
